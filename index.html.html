@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Misterio de la Mansión</title>
+<style>
+*{box-sizing:border-box}
+body{
+ margin:0;font-family:Arial,sans-serif;color:white;
+ background:linear-gradient(135deg,#160b35,#40206b,#112d50);
+ min-height:100vh;padding:18px;
+}
+.container{max-width:850px;margin:auto}
+header{text-align:center;padding:18px 5px}
+h1{font-size:clamp(27px,6vw,44px);margin:8px 0;color:#ffdc73}
+.subtitle{color:#e3d8ff}
+.panel{
+ background:#ffffff13;border:1px solid #ffffff30;
+ border-radius:22px;padding:18px;margin:15px 0;
+ box-shadow:0 10px 30px #0003;
+}
+.scene{
+ min-height:230px;border-radius:18px;display:flex;
+ flex-direction:column;align-items:center;justify-content:center;
+ text-align:center;padding:20px;
+ background:linear-gradient(150deg,#34205f,#8c478c,#f49a9a);
+}
+.scene .picture{font-size:85px;filter:drop-shadow(0 8px 8px #0004)}
+.scene h2{margin:8px 0}
+p{line-height:1.6}
+.stats{display:flex;gap:10px;flex-wrap:wrap}
+.stat{flex:1;min-width:110px;background:#ffffff12;
+ padding:12px;border-radius:13px;text-align:center}
+.buttons{display:grid;gap:10px;margin-top:15px}
+button{
+ border:0;border-radius:13px;padding:14px 12px;
+ font-size:15px;font-weight:bold;cursor:pointer;
+ color:white;background:linear-gradient(100deg,#8d5cff,#d94cb5);
+ transition:transform .15s,filter .15s;
+}
+button:hover{filter:brightness(1.15);transform:translateY(-2px)}
+button:focus-visible{outline:3px solid #ffe58c}
+.secondary{background:linear-gradient(100deg,#168cba,#4265dd)}
+.gold{background:linear-gradient(100deg,#b67819,#edbd4d);color:#27163a}
+.inventory{display:flex;gap:9px;flex-wrap:wrap}
+.item{background:#251943;border:1px solid #7765a4;
+ border-radius:12px;padding:9px 12px}
+.small{font-size:13px;color:#ded3f9}
+#message{min-height:24px;color:#ffe48d;font-weight:bold}
+footer{text-align:center;color:#c9bce7;padding:20px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+ <div style="font-size:36px">🌙 🔮 🗝️</div>
+ <h1>EL MISTERIO DE LA MANSIÓN</h1>
+ <div class="subtitle">Una aventura de secretos, acertijos y decisiones</div>
+</header>
+
+<div class="panel">
+ <div class="stats">
+  <div class="stat">⭐ Puntos<br><b id="points">0</b></div>
+  <div class="stat">🎒 Objetos<br><b id="count">0</b></div>
+  <div class="stat">🧩 Pistas<br><b id="clues">0</b></div>
+ </div>
+</div>
+
+<div class="panel">
+ <div class="scene" id="scene">
+  <div class="picture" id="picture">🏰</div>
+  <h2 id="title">La mansión encantada</h2>
+  <p id="story">Una carta misteriosa te ha llevado a una antigua mansión. Se dice que dentro existe un tesoro, pero nadie ha conseguido encontrarlo. ¿Te atreves a entrar?</p>
+ </div>
+ <div id="message"></div>
+ <div class="buttons" id="choices">
+  <button onclick="startGame()">✨ ¡Comenzar aventura!</button>
+ </div>
+</div>
+
+<div class="panel">
+ <h3>🎒 Mi inventario</h3>
+ <div class="inventory" id="inventory"><span class="small">Todavía no tienes objetos.</span></div>
+</div>
+
+<div class="panel">
+ <h3>📜 Diario de pistas</h3>
+ <p id="diary" class="small">Las pistas que encuentres aparecerán aquí.</p>
+ <button class="secondary" onclick="showHelp()">💡 Consultar ayuda</button>
+ <button class="gold" onclick="restart()">🔄 Reiniciar juego</button>
+</div>
+
+<footer>EL MISTERIO DE LA MANSIÓN · Aventura interactiva</footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let points=0, inventory=[], clues=[], flags={}, current="start";
+
+const scenes={
+ entrance:{
+  pic:"🚪",title:"La puerta misteriosa",
+  story:"La puerta se cierra detrás de ti. Hay tres caminos: un jardín iluminado, una biblioteca antigua y una escalera que baja a la oscuridad.",
+  choices:[
+   ["🌷 Explorar el jardín","garden"],
+   ["📚 Entrar en la biblioteca","library"],
+   ["🕯️ Bajar al sótano","basement"]
+  ]
+ },
+ garden:{
+  pic:"🌺",title:"El jardín de las luces",
+  story:"Las flores brillan bajo la luna. Junto a una fuente encuentras una llave dorada escondida entre las piedras.",
+  choices:[
+   ["🔑 Recoger la llave","getKey"],
+   ["🏰 Volver al vestíbulo","entrance"]
+  ]
+ },
+ library:{
+  pic:"📚",title:"La biblioteca secreta",
+  story:"Miles de libros cubren las paredes. En un escritorio hay un acertijo escrito por el antiguo dueño.",
+  choices:[
+   ["🧩 Resolver el acertijo","riddle"],
+   ["🔍 Revisar los libros","books"],
+   ["🚪 Volver al vestíbulo","entrance"]
+  ]
+ },
+ basement:{
+  pic:"🕯️",title:"El sótano oscuro",
+  story:"El aire está frío y una puerta de hierro bloquea el camino. Tiene una cerradura dorada.",
+  choices:[
+   ["🗝️ Probar la llave dorada","unlock"],
+   ["👣 Buscar otra salida","passage"],
+   ["⬆️ Regresar","entrance"]
+  ]
+ },
+ attic:{
+  pic:"🪟",title:"El ático olvidado",
+  story:"Entre cajas antiguas descubres un espejo cubierto de polvo y un cofre pequeño.",
+  choices:[
+   ["🪞 Limpiar el espejo","mirror"],
+   ["📦 Abrir el cofre","chest"],
+   ["⬇️ Bajar las escaleras","entrance"]
+  ]
+ }
+};
+
+function render(id){
+ current=id;
+ const s=scenes[id];
+ $("picture").textContent=s.pic;
+ $("title").textContent=s.title;
+ $("story").textContent=s.story;
+ $("choices").innerHTML="";
+ s.choices.forEach(([label,next])=>{
+  addButton(label,()=>act(next));
+ });
+ $("message").textContent="";
+ update();
+}
+
+function addButton(label,fn,cls=""){
+ const b=document.createElement("button");
+ b.textContent=label;
+ if(cls)b.className=cls;
+ b.onclick=fn;
+ $("choices").appendChild(b);
+}
+
+function update(){
+ $("points").textContent=points;
+ $("count").textContent=inventory.length;
+ $("clues").textContent=clues.length;
+ $("inventory").innerHTML=inventory.length
+ ?inventory.map(x=>'<span class="item">'+x+'</span>').join("")
+ :'<span class="small">Todavía no tienes objetos.</span>';
+ $("diary").textContent=clues.length
+ ?clues.join(" · "):"Las pistas que encuentres aparecerán aquí.";
+}
+
+function message(text){$("message").textContent=text}
+function addItem(item){
+ if(!inventory.includes(item)){
+  inventory.push(item);points+=10;
+  message("¡Objeto conseguido! +10 puntos");
+ }else message("Ya tienes este objeto.");
+ update();
+}
+function addClue(text){
+ if(!clues.includes(text)){clues.push(text);points+=5}
+ update();
+}
+
+function startGame(){
+ points=0;inventory=[];clues=[];flags={};
+ render("entrance");
+ message("¡Busca pistas y toma buenas decisiones!");
+}
+
+function act(action){
+ switch(action){
+ case "entrance":render("entrance");break;
+ case "garden":render("garden");break;
+ case "library":render("library");break;
+ case "basement":render("basement");break;
+
+ case "getKey":
+  if(!flags.key){
+   flags.key=true;addItem("🗝️ Llave dorada");
+   addClue("La llave abre una puerta de hierro.");
+  }else message("Ya recogiste la llave.");
+  addButton("⬅️ Volver al jardín",()=>render("garden"));
+  break;
+
+ case "riddle":
+  $("picture").textContent="❓";
+  $("title").textContent="El acertijo";
+  $("story").textContent="Tengo agujas, pero no sé coser. Tengo números, pero no sé contar. ¿Qué soy?";
+  $("choices").innerHTML="";
+  [["🕰️ Un reloj",true],["🌳 Un árbol",false],["📖 Un libro",false]]
+  .forEach(([label,correct])=>addButton(label,()=>{
+   if(correct){
+    if(!flags.riddle){
+     flags.riddle=true;points+=20;
+     addClue("El reloj señala el camino al ático.");
+    }
+    message("¡Correcto! +20 puntos. Has descubierto una pista.");
+    addButton("🏚️ Ir al ático",()=>render("attic"));
+   }else{
+    message("No es esa respuesta. ¡Inténtalo de nuevo!");
+    act("riddle");
+   }
+   update();
+  }));
+  addButton("⬅️ Volver",()=>render("library"),"secondary");
+  break;
+
+ case "books":
+  if(!flags.book){
+   flags.book=true;addItem("📜 Mapa antiguo");
+   addClue("El mapa señala un pasadizo secreto.");
+  }else message("Ya revisaste los libros.");
+  addButton("⬅️ Volver a la biblioteca",()=>render("library"));
+  break;
+
+ case "unlock":
+  if(inventory.includes("🗝️ Llave dorada")){
+   $("picture").textContent="🚪";
+   $("title").textContent="La puerta se abre";
+   $("story").textContent="La llave encaja. Al otro lado encuentras una cámara secreta con tres cofres de diferentes colores.";
+   $("choices").innerHTML="";
+   addButton("🔴 Abrir el cofre rojo",()=>ending("red"));
+   addButton("🔵 Abrir el cofre azul",()=>ending("blue"));
+   addButton("🟡 Abrir el cofre dorado",()=>ending("gold"));
+  }else{
+   message("Necesitas encontrar la llave dorada en el jardín.");
+   addButton("🌷 Ir al jardín",()=>render("garden"));
+   addButton("⬅️ Volver",()=>render("basement"),"secondary");
+  }
+  break;
+
+ case "passage":
+  if(inventory.includes("📜 Mapa antiguo")){
+   $("picture").textContent="🕳️";
+   $("title").textContent="El pasadizo secreto";
+   $("story").textContent="¡El mapa te guía por un túnel oculto hasta el ático! Has encontrado un camino que nadie conocía.";
+   points+=15;update();
+   addButton("🪟 Explorar el ático",()=>render("attic"));
+  }else{
+   message("No encuentras una salida. Quizás necesites un mapa.");
+   addButton("📚 Buscar en la biblioteca",()=>render("library"));
+   addButton("⬅️ Volver",()=>render("basement"),"secondary");
+  }
+  break;
+
+ case "mirror":
+  if(!flags.mirror){
+   flags.mirror=true;addItem("💎 Cristal mágico");
+   addClue("El espejo revela que el tesoro está bajo tierra.");
+  }else message("El espejo ya no muestra más secretos.");
+  addButton("⬅️ Volver al ático",()=>render("attic"));
+  break;
+
+ case "chest":
+  if(!flags.chest){
+   flags.chest=true;addItem("🪙 Moneda antigua");
+   addClue("La moneda tiene el símbolo de la mansión.");
+  }else message("El cofre está vacío.");
+  addButton("⬅️ Volver al ático",()=>render("attic"));
+  break;
+ }
+}
+
+function ending(type){
+ $("choices").innerHTML="";
+ if(type==="gold"){
+  $("picture").textContent="👑";
+  $("title").textContent="¡El tesoro real!";
+  $("story").textContent="¡Felicidades! El cofre dorado contiene el tesoro perdido de la familia. Gracias a tus pistas y valentía, has resuelto el misterio de la mansión.";
+  points+=50;
+ }else if(type==="blue"){
+  $("picture").textContent="💎";
+  $("title").textContent="El secreto mágico";
+  $("story").textContent="Dentro encuentras una piedra brillante que ilumina toda la cámara. Has descubierto la magia que protegía la mansión.";
+  points+=30;
+ }else{
+  $("picture").textContent="👻";
+  $("title").textContent="¡Una sorpresa inesperada!";
+  $("story").textContent="El cofre rojo contiene una carta del antiguo dueño. No hay oro, pero la carta revela la historia secreta de la mansión.";
+  points+=15;
+ }
+ update();
+ message("¡Aventura terminada! Puntuación final: "+points+" puntos.");
+ addButton("🔄 Jugar otra vez",restart);
+}
+
+function showHelp(){
+ if(current==="start"){
+  alert("Pulsa «Comenzar aventura» para iniciar.");
+ }else{
+  alert("Explora todos los lugares, recoge objetos y resuelve el acertijo. La llave está en el jardín y el mapa, en la biblioteca. ¡Las decisiones cambian tu aventura!");
+ }
+}
+
+function restart(){startGame()}
+</script>
+</body>
+</html>
